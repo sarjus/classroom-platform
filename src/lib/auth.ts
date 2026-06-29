@@ -1,6 +1,5 @@
 import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
-import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { supabaseAdmin } from "./supabase";
@@ -14,10 +13,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       authorization: {
         params: { scope: "read:user user:email repo" },
       },
-    }),
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
     Credentials({
       name: "credentials",
@@ -84,7 +79,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session;
     },
     async signIn({ user, account, profile }) {
-      if (account?.provider === "github" || account?.provider === "google") {
+      if (account?.provider === "github") {
         const { data: existing } = await supabaseAdmin
           .from("User")
           .select("id, name, image")
@@ -94,7 +89,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const now = new Date().toISOString();
 
         if (!existing) {
-          // First time — create user row
           const { error } = await supabaseAdmin.from("User").insert({
             id: user.id,
             email: user.email,
@@ -102,8 +96,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             image: user.image,
             role: "STUDENT",
             isActive: true,
-            githubId: account.provider === "github" ? String((profile as any)?.id ?? "") : null,
-            googleId: account.provider === "google" ? String((profile as any)?.sub ?? "") : null,
+            githubId: String((profile as any)?.id ?? ""),
             createdAt: now,
             updatedAt: now,
           });
@@ -112,7 +105,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             return false;
           }
         } else {
-          // User exists — update name/image/token in case they changed
           await supabaseAdmin
             .from("User")
             .update({
@@ -122,7 +114,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             })
             .eq("id", existing.id);
 
-          // Make NextAuth use the existing DB id so JWT.id is correct
           user.id = existing.id;
         }
       }
