@@ -23,28 +23,37 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        const { data: user, error } = await supabaseAdmin
-          .from("User")
-          .select("id, email, name, image, password, role, isActive")
-          .eq("email", credentials.email as string)
-          .maybeSingle();
+        try {
+          const { data: user, error } = await supabaseAdmin
+            .from("User")
+            .select("id, email, name, image, password, role, isActive")
+            .eq("email", credentials.email as string)
+            .maybeSingle();
 
-        if (error || !user || !user.password) return null;
+          if (error) {
+            console.error("[authorize] supabase error:", error.message);
+            return null;
+          }
+          if (!user || !user.password) return null;
 
-        const isValid = await bcrypt.compare(
-          credentials.password as string,
-          user.password
-        );
-        if (!isValid) return null;
-        if (!user.isActive) return null;
+          const isValid = await bcrypt.compare(
+            credentials.password as string,
+            user.password
+          );
+          if (!isValid) return null;
+          if (!user.isActive) return null;
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          image: user.image,
-          role: user.role as UserRole,
-        };
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            image: user.image,
+            role: user.role as UserRole,
+          };
+        } catch (err) {
+          console.error("[authorize] unexpected error:", err);
+          return null;
+        }
       },
     }),
   ],
