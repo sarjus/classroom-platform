@@ -1,0 +1,567 @@
+// Prisma Schema - Classroom Assignment Management Platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  SUPER_ADMIN
+  INSTITUTION_ADMIN
+  FACULTY
+  TEACHING_ASSISTANT
+  STUDENT
+}
+
+enum AssignmentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+  SCHEDULED
+}
+
+enum SubmissionStatus {
+  PENDING
+  ACCEPTED
+  SUBMITTED
+  GRADED
+  LATE
+  MISSED
+}
+
+enum AutogradeStatus {
+  QUEUED
+  RUNNING
+  PASSED
+  FAILED
+  ERROR
+  TIMEOUT
+}
+
+enum NotificationType {
+  ASSIGNMENT_PUBLISHED
+  DEADLINE_REMINDER
+  LATE_WARNING
+  AUTOGRADING_COMPLETE
+  FEEDBACK_AVAILABLE
+  GRADE_RELEASED
+  ANNOUNCEMENT
+  INVITATION
+}
+
+enum LanguageSupport {
+  C
+  CPP
+  JAVA
+  PYTHON
+  JAVASCRIPT
+  TYPESCRIPT
+  GO
+  RUST
+}
+
+// ─── Core Models ──────────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  username      String?   @unique
+  image         String?
+  password      String?   // hashed; null for OAuth-only users
+  role          UserRole  @default(STUDENT)
+  githubId      String?   @unique
+  githubToken   String?   // encrypted
+  googleId      String?   @unique
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  institution           Institution?         @relation(fields: [institutionId], references: [id])
+  institutionId         String?
+  accounts              Account[]
+  sessions              Session[]
+  enrollments           Enrollment[]
+  createdClassrooms     Classroom[]          @relation("ClassroomCreator")
+  taClassrooms          ClassroomTA[]
+  submissions           Submission[]
+  grades                Grade[]
+  feedbacks             Feedback[]
+  notifications         Notification[]
+  auditLogs             AuditLog[]
+  discussionMessages    DiscussionMessage[]
+  plagiarismReports     PlagiarismReport[]
+  createdAssignments    Assignment[]         @relation("AssignmentCreator")
+
+  @@index([email])
+  @@index([institutionId])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── Institution & Org ────────────────────────────────────────────────────────
+
+model Institution {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  logo        String?
+  website     String?
+  githubOrg   String?  // GitHub org slug
+  plan        String   @default("free")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users        User[]
+  departments  Department[]
+  classrooms   Classroom[]
+  settings     InstitutionSettings?
+}
+
+model InstitutionSettings {
+  id                String      @id @default(cuid())
+  institutionId     String      @unique
+  allowSelfSignup   Boolean     @default(false)
+  emailDomain       String?
+  githubOrgId       String?
+  smtpConfig        Json?
+  webhookSecret     String?
+  storageConfig     Json?
+  updatedAt         DateTime    @updatedAt
+
+  institution Institution @relation(fields: [institutionId], references: [id])
+}
+
+model Department {
+  id            String      @id @default(cuid())
+  name          String
+  code          String
+  institutionId String
+  createdAt     DateTime    @default(now())
+
+  institution Institution @relation(fields: [institutionId], references: [id])
+  courses     Course[]
+
+  @@unique([institutionId, code])
+}
+
+model Course {
+  id           String   @id @default(cuid())
+  name         String
+  code         String
+  description  String?
+  departmentId String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  department  Department  @relation(fields: [departmentId], references: [id])
+  classrooms  Classroom[]
+
+  @@unique([departmentId, code])
+}
+
+// ─── Classroom ────────────────────────────────────────────────────────────────
+
+model Classroom {
+  id            String    @id @default(cuid())
+  name          String
+  description   String?
+  code          String    @unique // join code e.g. "ABC123"
+  courseId      String?
+  instructorId  String
+  institutionId String?
+  semester      String?
+  year          Int?
+  isArchived    Boolean   @default(false)
+  githubOrgUrl  String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  instructor    User           @relation("ClassroomCreator", fields: [instructorId], references: [id])
+  course        Course?        @relation(fields: [courseId], references: [id])
+  institution   Institution?   @relation(fields: [institutionId], references: [id])
+  enrollments   Enrollment[]
+  assignments   Assignment[]
+  tas           ClassroomTA[]
+  announcements Announcement[]
+
+  @@index([instructorId])
+  @@index([code])
+}
+
+model ClassroomTA {
+  classroomId String
+  userId      String
+  assignedAt  DateTime @default(now())
+
+  classroom Classroom @relation(fields: [classroomId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@id([classroomId, userId])
+}
+
+model Enrollment {
+  id          String   @id @default(cuid())
+  classroomId String
+  userId      String
+  joinedAt    DateTime @default(now())
+  isActive    Boolean  @default(true)
+  studentId   String?  // institutional student ID
+
+  classroom Classroom @relation(fields: [classroomId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@unique([classroomId, userId])
+  @@index([userId])
+}
+
+// ─── Assignment ───────────────────────────────────────────────────────────────
+
+model Assignment {
+  id                  String           @id @default(cuid())
+  title               String
+  description         String?          @db.Text
+  instructions        String?          @db.Text // Markdown
+  classroomId         String
+  creatorId           String
+  status              AssignmentStatus @default(DRAFT)
+  dueDate             DateTime?
+  scheduledPublishAt  DateTime?
+  allowLateSubmission Boolean          @default(false)
+  latePenaltyPercent  Int              @default(0)
+  maxScore            Int              @default(100)
+  starterRepoUrl      String?          // GitHub URL for starter template
+  starterRepoRef      String?          // branch/tag
+  language            LanguageSupport  @default(PYTHON)
+  isGroupAssignment   Boolean          @default(false)
+  maxGroupSize        Int?
+  attachments         Json?            // array of { name, url, type }
+  templateRepoName    String?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  classroom    Classroom      @relation(fields: [classroomId], references: [id])
+  creator      User           @relation("AssignmentCreator", fields: [creatorId], references: [id])
+  submissions  Submission[]
+  rubric       Rubric?
+  autogradeConfig AutogradeConfig?
+  discussions  DiscussionThread[]
+
+  @@index([classroomId])
+  @@index([status])
+}
+
+// ─── Repository & Submission ──────────────────────────────────────────────────
+
+model Submission {
+  id             String           @id @default(cuid())
+  assignmentId   String
+  studentId      String
+  status         SubmissionStatus @default(PENDING)
+  repoUrl        String?          // GitHub repo URL
+  repoName       String?          // e.g. CS101_2026001_LinkedList
+  repoId         String?          // GitHub repo ID
+  cloneUrl       String?
+  defaultBranch  String           @default("main")
+  acceptedAt     DateTime?
+  submittedAt    DateTime?
+  lockedAt       DateTime?        // after deadline
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  assignment   Assignment    @relation(fields: [assignmentId], references: [id])
+  student      User          @relation(fields: [studentId], references: [id])
+  commits      Commit[]
+  autogrades   Autograde[]
+  grade        Grade?
+
+  @@unique([assignmentId, studentId])
+  @@index([studentId])
+  @@index([status])
+}
+
+model Commit {
+  id           String   @id @default(cuid())
+  submissionId String
+  sha          String
+  message      String?
+  authorName   String?
+  authorEmail  String?
+  pushedAt     DateTime
+  additions    Int      @default(0)
+  deletions    Int      @default(0)
+  filesChanged Int      @default(0)
+  url          String?
+
+  submission Submission @relation(fields: [submissionId], references: [id])
+
+  @@unique([submissionId, sha])
+  @@index([submissionId])
+}
+
+// ─── Autograding ──────────────────────────────────────────────────────────────
+
+model AutogradeConfig {
+  id             String          @id @default(cuid())
+  assignmentId   String          @unique
+  language       LanguageSupport
+  buildCommand   String?
+  runCommand     String?
+  timeLimit      Int             @default(30)   // seconds
+  memoryLimit    Int             @default(256)  // MB
+  dockerImage    String?
+  testCases      TestCase[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id])
+}
+
+model TestCase {
+  id               String  @id @default(cuid())
+  autogradeConfigId String
+  name             String
+  input            String? @db.Text
+  expectedOutput   String? @db.Text
+  points           Int     @default(10)
+  isHidden         Boolean @default(false)
+  timeout          Int?
+  compareMode      String  @default("exact") // exact | contains | regex
+
+  config AutogradeConfig @relation(fields: [autogradeConfigId], references: [id])
+
+  @@index([autogradeConfigId])
+}
+
+model Autograde {
+  id              String          @id @default(cuid())
+  submissionId    String
+  status          AutogradeStatus @default(QUEUED)
+  score           Float?
+  maxScore        Float?
+  compilationLog  String?         @db.Text
+  executionLog    String?         @db.Text
+  testResults     Json?           // array of TestResult
+  executionTime   Int?            // ms
+  memoryUsed      Int?            // MB
+  commitSha       String?
+  triggeredAt     DateTime        @default(now())
+  completedAt     DateTime?
+
+  submission Submission @relation(fields: [submissionId], references: [id])
+
+  @@index([submissionId])
+}
+
+// ─── Rubric & Grading ─────────────────────────────────────────────────────────
+
+model Rubric {
+  id           String         @id @default(cuid())
+  assignmentId String         @unique
+  totalPoints  Int            @default(100)
+  criteria     RubricCriteria[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id])
+}
+
+model RubricCriteria {
+  id          String  @id @default(cuid())
+  rubricId    String
+  title       String
+  description String? @db.Text
+  maxPoints   Int
+  order       Int     @default(0)
+
+  rubric     Rubric        @relation(fields: [rubricId], references: [id])
+  gradeItems GradeItem[]
+
+  @@index([rubricId])
+}
+
+model Grade {
+  id           String   @id @default(cuid())
+  submissionId String   @unique
+  graderId     String
+  score        Float
+  maxScore     Float
+  percentage   Float
+  isReleased   Boolean  @default(false)
+  notes        String?  @db.Text
+  gradedAt     DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  submission Submission  @relation(fields: [submissionId], references: [id])
+  grader     User        @relation(fields: [graderId], references: [id])
+  items      GradeItem[]
+  feedbacks  Feedback[]
+}
+
+model GradeItem {
+  id         String  @id @default(cuid())
+  gradeId    String
+  criteriaId String
+  points     Float
+  comment    String? @db.Text
+
+  grade    Grade          @relation(fields: [gradeId], references: [id])
+  criteria RubricCriteria @relation(fields: [criteriaId], references: [id])
+}
+
+model Feedback {
+  id           String   @id @default(cuid())
+  gradeId      String
+  authorId     String
+  filePath     String?
+  lineNumber   Int?
+  comment      String   @db.Text
+  isResolved   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  grade    Grade @relation(fields: [gradeId], references: [id])
+  author   User  @relation(fields: [authorId], references: [id])
+}
+
+// ─── Discussion ───────────────────────────────────────────────────────────────
+
+model DiscussionThread {
+  id           String   @id @default(cuid())
+  assignmentId String
+  title        String
+  isPinned     Boolean  @default(false)
+  isResolved   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assignment Assignment         @relation(fields: [assignmentId], references: [id])
+  messages   DiscussionMessage[]
+}
+
+model DiscussionMessage {
+  id        String   @id @default(cuid())
+  threadId  String
+  authorId  String
+  content   String   @db.Text
+  parentId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  thread   DiscussionThread   @relation(fields: [threadId], references: [id])
+  author   User               @relation(fields: [authorId], references: [id])
+  parent   DiscussionMessage? @relation("MessageReplies", fields: [parentId], references: [id])
+  replies  DiscussionMessage[] @relation("MessageReplies")
+}
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, isRead])
+}
+
+// ─── Announcements ────────────────────────────────────────────────────────────
+
+model Announcement {
+  id          String   @id @default(cuid())
+  classroomId String
+  title       String
+  content     String   @db.Text
+  isPinned    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  classroom Classroom @relation(fields: [classroomId], references: [id])
+}
+
+// ─── Plagiarism ───────────────────────────────────────────────────────────────
+
+model PlagiarismReport {
+  id               String   @id @default(cuid())
+  assignmentId     String
+  reportedBy       String
+  submission1Id    String
+  submission2Id    String
+  similarityScore  Float
+  astScore         Float?
+  tokenScore       Float?
+  suspiciousFiles  Json?
+  status           String   @default("PENDING") // PENDING | REVIEWED | DISMISSED
+  createdAt        DateTime @default(now())
+
+  reporter User @relation(fields: [reportedBy], references: [id])
+
+  @@index([assignmentId])
+}
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  resource   String
+  resourceId String?
+  details    Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([resource, resourceId])
+  @@index([createdAt])
+}
