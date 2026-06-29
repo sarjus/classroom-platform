@@ -27,7 +27,15 @@ export default async function AnalyticsPage() {
       orderBy: { createdAt: "desc" },
     });
 
-    const releasedGrades = submissions.filter((s) => s.grade?.isReleased);
+    const submissionsData = submissions as Array<{
+      status: string;
+      assignment: { title: string; maxScore: number; dueDate: string | null };
+      grade: { score: number; maxScore: number; percentage: number; isReleased: boolean } | null;
+      autogrades: Array<{ status: string }>;
+      commits: Array<{ pushedAt: string }>;
+    }>;
+
+    const releasedGrades = submissionsData.filter((s) => s.grade?.isReleased);
     const avgGrade = releasedGrades.length > 0
       ? releasedGrades.reduce((sum, s) => sum + (s.grade?.percentage ?? 0), 0) / releasedGrades.length
       : 0;
@@ -49,7 +57,7 @@ export default async function AnalyticsPage() {
             </CardContent></Card>
             <Card><CardContent className="p-6">
               <p className="text-sm text-muted-foreground">Submitted</p>
-              <p className="text-3xl font-bold mt-1">{submissions.filter((s) => s.status !== "PENDING" && s.status !== "ACCEPTED").length}</p>
+              <p className="text-3xl font-bold mt-1">{submissionsData.filter((s) => s.status !== "PENDING" && s.status !== "ACCEPTED").length}</p>
             </CardContent></Card>
             <Card><CardContent className="p-6">
               <p className="text-sm text-muted-foreground">Average Grade</p>
@@ -60,7 +68,7 @@ export default async function AnalyticsPage() {
             <Card><CardContent className="p-6">
               <p className="text-sm text-muted-foreground">Total Commits</p>
               <p className="text-3xl font-bold mt-1">
-                {submissions.reduce((sum, s) => sum + s.commits.length, 0)}
+                {submissionsData.reduce((sum, s) => sum + s.commits.length, 0)}
               </p>
             </CardContent></Card>
           </div>
@@ -88,20 +96,30 @@ export default async function AnalyticsPage() {
     },
   });
 
-  const totalStudents = classrooms.reduce((sum, c) => sum + c.enrollments.length, 0);
-  const totalAssignments = classrooms.reduce((sum, c) => sum + c.assignments.length, 0);
-  const totalSubmissions = classrooms.reduce(
+  type ClassroomWithData = {
+    name: string;
+    enrollments: Array<{ userId: string }>;
+    assignments: Array<{
+      _count: { submissions: number };
+      submissions: Array<{ grade: { percentage: number } | null }>;
+    }>;
+  };
+  const classroomsData = classrooms as ClassroomWithData[];
+
+  const totalStudents = classroomsData.reduce((sum, c) => sum + c.enrollments.length, 0);
+  const totalAssignments = classroomsData.reduce((sum, c) => sum + c.assignments.length, 0);
+  const totalSubmissions = classroomsData.reduce(
     (sum, c) => sum + c.assignments.reduce((s2, a) => s2 + a._count.submissions, 0), 0
   );
 
-  const allGrades: number[] = classrooms.flatMap((c) =>
+  const allGrades: number[] = classroomsData.flatMap((c) =>
     c.assignments.flatMap((a) =>
       a.submissions.filter((s) => s.grade).map((s) => s.grade!.percentage)
     )
   );
   const avgGrade = allGrades.length > 0 ? allGrades.reduce((a, b) => a + b, 0) / allGrades.length : 0;
 
-  const submissionByClassroom = classrooms.map((c) => ({
+  const submissionByClassroom = classroomsData.map((c) => ({
     name: c.name.slice(0, 20),
     submissions: c.assignments.reduce((sum, a) => sum + a._count.submissions, 0),
     students: c.enrollments.length,

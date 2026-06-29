@@ -57,7 +57,7 @@ export default async function DashboardPage() {
       .eq("userId", user.id)
       .eq("isActive", true);
 
-    const classroomIds = enrollments.map((e: any) => e.classroomId);
+    const classroomIds = (enrollments ?? []).map((e: any) => e.classroomId);
 
     if (classroomIds.length > 0) {
       const { data: assignments = [] } = await supabaseAdmin
@@ -69,8 +69,8 @@ export default async function DashboardPage() {
         .limit(5);
 
       // Fetch classroom names and submissions for each assignment
-      const assignmentIds = assignments.map((a: any) => a.id);
-      const classroomIdSet = [...new Set(assignments.map((a: any) => a.classroomId))];
+      const assignmentIds = (assignments ?? []).map((a: any) => a.id);
+      const classroomIdSet = [...new Set((assignments ?? []).map((a: any) => a.classroomId))];
 
       const [{ data: classrooms = [] }, { data: submissions = [] }] = await Promise.all([
         supabaseAdmin.from("Classroom").select("id, name").in("id", classroomIdSet),
@@ -83,7 +83,7 @@ export default async function DashboardPage() {
       const classroomMap = Object.fromEntries((classrooms as any[]).map((c: any) => [c.id, c]));
       const submissionMap = Object.fromEntries((submissions as any[]).map((s: any) => [s.assignmentId, s]));
 
-      recentAssignments = assignments.map((a: any) => ({
+      recentAssignments = (assignments ?? []).map((a: any) => ({
         ...a,
         classroom: classroomMap[a.classroomId] ?? { name: "Unknown" },
         submissions: submissionMap[a.id] ? [submissionMap[a.id]] : [],
@@ -97,9 +97,9 @@ export default async function DashboardPage() {
       .order("createdAt", { ascending: false })
       .limit(5);
 
-    if (assignments.length > 0) {
-      const classroomIdSet = [...new Set(assignments.map((a: any) => a.classroomId))];
-      const assignmentIds = assignments.map((a: any) => a.id);
+    if ((assignments ?? []).length > 0) {
+      const classroomIdSet = [...new Set((assignments ?? []).map((a: any) => a.classroomId))];
+      const assignmentIds = (assignments ?? []).map((a: any) => a.id);
 
       const [{ data: classrooms = [] }, { data: subCounts = [] }] = await Promise.all([
         supabaseAdmin.from("Classroom").select("id, name").in("id", classroomIdSet),
@@ -114,7 +114,7 @@ export default async function DashboardPage() {
         countMap[s.assignmentId] = (countMap[s.assignmentId] ?? 0) + 1;
       }
 
-      recentAssignments = assignments.map((a: any) => ({
+      recentAssignments = (assignments ?? []).map((a: any) => ({
         ...a,
         classroom: classroomMap[a.classroomId] ?? { name: "Unknown" },
         _count: { submissions: countMap[a.id] ?? 0 },
@@ -136,14 +136,14 @@ export default async function DashboardPage() {
         ),
     ]);
 
-    const avg = grades.length > 0
-      ? (grades as any[]).reduce((s: number, g: any) => s + g.percentage, 0) / grades.length
+    const avg = (grades ?? []).length > 0
+      ? (grades as any[]).reduce((s: number, g: any) => s + g.percentage, 0) / (grades ?? []).length
       : 0;
 
     studentStats = {
-      total: submissions.length,
-      submitted: (submissions as any[]).filter((s: any) => s.status !== "PENDING" && s.status !== "ACCEPTED").length,
-      graded: grades.length,
+      total: (submissions ?? []).length,
+      submitted: (submissions as any[] ?? []).filter((s: any) => s.status !== "PENDING" && s.status !== "ACCEPTED").length,
+      graded: (grades ?? []).length,
       avg: Math.round(avg),
     };
   }
@@ -413,10 +413,10 @@ export default async function DashboardPage() {
                 </Link>
               </CardHeader>
               <CardContent className="space-y-3">
-                {recentNotifications.length === 0 ? (
+                {(recentNotifications ?? []).length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">All caught up!</p>
                 ) : (
-                  recentNotifications.map((n: any) => (
+                  (recentNotifications ?? []).map((n: any) => (
                     <Link key={n.id} href={n.link ?? "/notifications"}>
                       <div className="flex gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
                         <div className="w-2 h-2 rounded-full bg-blue-500 mt-2 flex-shrink-0" />

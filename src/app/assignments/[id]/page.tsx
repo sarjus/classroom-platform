@@ -104,9 +104,10 @@ export default async function AssignmentDetailPage({ params }: { params: Promise
           .select("id, filePath, lineNumber, comment, authorId")
           .eq("gradeId", (grade as any).id);
         const authorIds = [...new Set((fb as any[]).map((f: any) => f.authorId))];
-        const { data: authors = [] } = authorIds.length
+        const authorsResult = authorIds.length
           ? await supabaseAdmin.from("User").select("id, name").in("id", authorIds)
-          : Promise.resolve({ data: [] });
+          : { data: [] as Array<{ id: string; name: string }> };
+        const authors = authorsResult.data ?? [];
         const authorMap = Object.fromEntries((authors as any[]).map((u: any) => [u.id, u]));
         feedbacks = (fb as any[]).map((f: any) => ({ ...f, author: authorMap[f.authorId] ?? { name: "Unknown" } }));
       }
@@ -133,7 +134,7 @@ export default async function AssignmentDetailPage({ params }: { params: Promise
       .eq("assignmentId", id)
       .order("createdAt", { ascending: false });
 
-    if (subs.length > 0) {
+    if ((subs ?? []).length > 0) {
       const studentIds = [...new Set((subs as any[]).map((s: any) => s.studentId))];
       const subIds = (subs as any[]).map((s: any) => s.id);
 

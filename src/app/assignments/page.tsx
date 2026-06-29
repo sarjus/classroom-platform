@@ -37,7 +37,7 @@ export default async function AssignmentsPage() {
         .in("classroomId", classroomIds)
         .order("dueDate", { ascending: true });
 
-      if (raw.length > 0) {
+      if ((raw ?? []).length > 0) {
         const assignmentIds = (raw as any[]).map((a) => a.id);
         const classroomIdSet = [...new Set((raw as any[]).map((a: any) => a.classroomId))];
 
@@ -88,7 +88,7 @@ export default async function AssignmentsPage() {
 
     const { data: raw = [] } = await query;
 
-    if (raw.length > 0) {
+    if ((raw ?? []).length > 0) {
       const classroomIdSet = [...new Set((raw as any[]).map((a: any) => a.classroomId))];
       const assignmentIds = (raw as any[]).map((a: any) => a.id);
 

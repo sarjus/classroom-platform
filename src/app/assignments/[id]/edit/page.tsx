@@ -37,7 +37,7 @@ export default function EditAssignmentPage() {
   const [loading, setLoading] = useState(true);
 
   const { register, handleSubmit, setValue, watch, reset, formState: { errors, isSubmitting } } =
-    useForm<EditInput>({ resolver: zodResolver(editSchema) });
+    useForm<EditInput>({ resolver: zodResolver(editSchema) as any });
 
   useEffect(() => {
     fetch(`/api/assignments/${id}`)

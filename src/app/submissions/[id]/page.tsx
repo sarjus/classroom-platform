@@ -100,7 +100,7 @@ export default async function SubmissionDetailPage({ params }: { params: Promise
             {submission.autogrades.length === 0 ? (
               <Card><CardContent className="p-6 text-center text-muted-foreground">No autograding runs yet.</CardContent></Card>
             ) : (
-              submission.autogrades.map((ag) => (
+              submission.autogrades.map((ag: any) => (
                 <Card key={ag.id}>
                   <CardHeader>
                     <div className="flex items-center justify-between">
@@ -161,7 +161,7 @@ export default async function SubmissionDetailPage({ params }: { params: Promise
                   <div className="p-6 text-center text-muted-foreground">No commits recorded.</div>
                 ) : (
                   <div className="divide-y">
-                    {submission.commits.map((c) => (
+                    {submission.commits.map((c: any) => (
                       <div key={c.id} className="flex items-start gap-3 p-4">
                         <Code className="w-4 h-4 text-muted-foreground mt-1 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
@@ -211,7 +211,7 @@ export default async function SubmissionDetailPage({ params }: { params: Promise
                       <p className="text-sm">{submission.grade.notes}</p>
                     </div>
                   )}
-                  {submission.grade.feedbacks.map((f) => (
+                  {submission.grade.feedbacks.map((f: any) => (
                     <div key={f.id} className="border-l-4 border-primary pl-4 py-1">
                       {f.filePath && <p className="text-xs font-mono text-muted-foreground mb-1">{f.filePath}{f.lineNumber ? `:${f.lineNumber}` : ""}</p>}
                       <p className="text-sm">{f.comment}</p>

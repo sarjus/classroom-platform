@@ -23,17 +23,17 @@ export default async function LeaderboardPage() {
     },
   });
 
-  const ranked = leaderboard
-    .map((u) => {
-      const grades = u.grades;
+  const ranked = (leaderboard as any[])
+    .map((u: any) => {
+      const grades: Array<{ percentage: number; score: number; maxScore: number }> = u.grades ?? [];
       const avg = grades.length > 0
         ? grades.reduce((s, g) => s + g.percentage, 0) / grades.length
         : 0;
       return {
-        id: u.id,
-        name: u.name,
-        image: u.image,
-        email: u.email,
+        id: u.id as string,
+        name: u.name as string,
+        image: u.image as string | null,
+        email: u.email as string,
         avgGrade: Math.round(avg),
         totalSubmissions: grades.length,
         totalScore: grades.reduce((s, g) => s + g.score, 0),

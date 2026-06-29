@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
       ]);
 
       const avgGrade = grades.length > 0
-        ? grades.reduce((sum, g) => sum + g.percentage, 0) / grades.length
+        ? grades.reduce((sum: number, g: { percentage: number }) => sum + g.percentage, 0) / grades.length
         : 0;
 
       return NextResponse.json({
@@ -63,11 +63,11 @@ export async function GET(req: NextRequest) {
       ? await prisma.enrollment.count({ where: { classroomId, isActive: true } })
       : 0;
 
-    const stats = assignments.map((a) => {
-      const submitted = a.submissions.filter((s) => s.status !== "PENDING").length;
-      const graded = a.submissions.filter((s) => s.grade).length;
-      const grades = a.submissions.filter((s) => s.grade).map((s) => s.grade!.percentage);
-      const avgScore = grades.length > 0 ? grades.reduce((x, y) => x + y, 0) / grades.length : 0;
+    const stats = (assignments as any[]).map((a: any) => {
+      const submitted = a.submissions.filter((s: any) => s.status !== "PENDING").length;
+      const graded = a.submissions.filter((s: any) => s.grade).length;
+      const grades: number[] = a.submissions.filter((s: any) => s.grade).map((s: any) => s.grade!.percentage as number);
+      const avgScore = grades.length > 0 ? grades.reduce((x: number, y: number) => x + y, 0) / grades.length : 0;
 
       return {
         id: a.id,

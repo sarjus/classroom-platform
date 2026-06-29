@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     if (existing) {
       // Delete old test cases
       await prisma.testCase.deleteMany({ where: { autogradeConfigId: existing.id } });
-      const config = await prisma.autogradeConfig.update({
+      const config = await (prisma.autogradeConfig.update as any)({
         where: { assignmentId: data.assignmentId },
         data: {
           language: data.language,
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ config });
     }
 
-    const config = await prisma.autogradeConfig.create({
+    const config = await (prisma.autogradeConfig.create as any)({
       data: {
         assignmentId: data.assignmentId,
         language: data.language,

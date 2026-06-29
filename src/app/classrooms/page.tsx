@@ -48,7 +48,7 @@ export default async function ClassroomsPage() {
 
   const { data: classrooms = [] } = await classroomsQuery;
 
-  if (!classrooms.length) {
+  if (!(classrooms ?? []).length) {
     return (
       <AppLayout title="Classrooms">
         <EmptyState isStudent={isStudent} count={0} classrooms={[]} />

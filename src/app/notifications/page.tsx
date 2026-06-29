@@ -42,7 +42,8 @@ export default async function NotificationsPage() {
     take: 50,
   });
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const notificationList = (notifications as any[]);
+  const unreadCount = notificationList.filter((n: any) => !n.isRead).length;
 
   return (
     <AppLayout title="Notifications">
@@ -55,7 +56,7 @@ export default async function NotificationsPage() {
           {unreadCount > 0 && <MarkAllReadButton />}
         </div>
 
-        {notifications.length === 0 ? (
+        {notificationList.length === 0 ? (
           <div className="text-center py-20">
             <Bell className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium">All caught up!</h3>
@@ -63,9 +64,9 @@ export default async function NotificationsPage() {
           </div>
         ) : (
           <div className="space-y-2">
-            {notifications.map((n) => {
-              const Icon = typeIcons[n.type] ?? Bell;
-              const iconColor = typeColors[n.type] ?? "text-gray-600";
+            {notificationList.map((n: any) => {
+              const Icon = typeIcons[n.type as NotificationType] ?? Bell;
+              const iconColor = typeColors[n.type as NotificationType] ?? "text-gray-600";
               return (
                 <Link key={n.id} href={n.link ?? "#"}>
                   <Card className={`hover:shadow-sm transition-shadow cursor-pointer ${!n.isRead ? "border-primary/30 bg-primary/5" : ""}`}>

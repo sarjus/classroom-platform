@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Compatibility shim — re-exports the Supabase admin client
  * with a Prisma-like query API so existing code keeps working.

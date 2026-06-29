@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     // Delete existing rubric if updating
     await prisma.rubric.deleteMany({ where: { assignmentId: data.assignmentId } });
 
-    const rubric = await prisma.rubric.create({
+    const rubric = await (prisma.rubric.create as any)({
       data: {
         assignmentId: data.assignmentId,
         totalPoints: data.totalPoints,
